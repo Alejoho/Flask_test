@@ -11,7 +11,6 @@ bp = Blueprint("index_routes", __name__)
 def index():
     form = LoginForm()
     username = None
-    token = None
 
     if form.validate_on_submit():
         username = form.username.data
@@ -19,34 +18,51 @@ def index():
         form.username.data = ""
         form.email.data = ""
 
-        serializer = current_app.config["SERIALIZER"]
-        token = serializer.dumps(email, "email_confirmation")
-        link = f"127.0.0.1:5000{url_for("index_routes.confirm_email", token=token)}"
+        activation_email = create_activation_email(email)
+        send_email(email, activation_email)
+        token = activation_email.as_string()
 
-        message_body = (
-            f"{username} please follow this link to activate your account: {link}"
+    return render_template("index.html", form=form, username=username)
+
+
+def generate_activation_link(recipient):
+    serializer = current_app.config["SERIALIZER"]
+    token = serializer.dumps(recipient, "email_confirmation")
+    link = f"127.0.0.1:5000{url_for("index_routes.confirm_email", token=token)}"
+    return link
+
+
+def create_activation_email(recipient):
+    link = generate_activation_link(recipient)
+
+    message_body = f"Please follow this link to activate your account:\n{link}"
+
+    message = MIMEText(message_body)
+    message["From"] = os.getenv("GMAIL_ACCOUNT")
+    message["To"] = recipient
+    message["Subject"] = "Account Activation"
+
+    return message
+
+
+def send_email(recipient, email):
+    with smtplib.SMTP(
+        current_app.config["MAIL_SERVER"], current_app.config["MAIL_PORT"]
+    ) as email_server:
+        print("server ready")
+
+        email_server.starttls()
+        print("server started")
+
+        email_server.login(
+            current_app.config["MAIL_USERNAME"], current_app.config["MAIL_PASSWORD"]
         )
+        print("server logged")
 
-        print(message_body)
-
-        message = MIMEText(message_body)
-        message["From"] = os.getenv("GMAIL_ACCOUNT")
-        message["To"] = email
-        message["Subject"] = "Account Activation"
-
-        # email_server = smtplib.SMTP("smtp.gmail.com", 587)
-        with smtplib.SMTP("smtp.gmail.com", 587) as email_server:
-            print("server ready")
-            email_server.starttls()
-            print("server started")
-            email_server.login(os.getenv("GMAIL_ACCOUNT"), os.getenv("GMAIL_PASSWORD"))
-            print("server logged")
-            email_server.sendmail(
-                os.getenv("GMAIL_ACCOUNT"), email, message.as_string()
-            )
-            print("email sent")
-
-    return render_template("index.html", form=form, username=username, token=token)
+        email_server.sendmail(
+            current_app.config["MAIL_USERNAME"], recipient, email.as_string()
+        )
+        print("email sent")
 
 
 @bp.get("/confirm_email/<token>")

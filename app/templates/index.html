@@ -20,9 +20,8 @@
 
 {% if username %}
 
-<h1>Your username is {{ username }} and your token is {{ token }}</h1>
+<h1>Your username is {{ username }}. Please verify your email to confirm your account.</h1>
 <br>
-<a href="{{ url_for('index_routes.confirm_email',token=token) }}">Confirm Email</a>
 
 {% else %}
 
