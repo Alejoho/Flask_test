@@ -13,27 +13,30 @@ def verify_recaptcha(recaptcha_response):
         "secret": current_app.config["RECAPTCHA_PRIVATE_KEY"],
         "response": recaptcha_response,
     }
-    context = ssl.create_default_context(cafile=certifi.where())
-    response = requests.post(url, data=data, verify=context.verify_mode)
+    response = requests.post(url, data=data)
     result = response.json()
-    return result.get("success", False)
+    print(result["success"])
+    print(result["score"])
+
+    return result["success"] and result["score"] >= 0.5
 
 
 @bp.route("/", methods=["GET", "POST"])
 def index():
     form = LoginForm()
     username = None
-    site_key = current_app.config["RECAPTCHA_PUBLIC_KEY"]
 
     if form.validate_on_submit():
         username = form.username.data
         form.username.data = ""
-        # recaptcha_response = request.form.get("g-recaptcha-response")
-        # if verify_recaptcha(recaptcha_response):
-        #     username = "Form submitted successfully!", "success"
-        # else:
-        #     username = "reCAPTCHA verification failed. Please try again.", "danger"
+        recaptcha_response = request.form.get("g-recaptcha-response")
+
+        if not verify_recaptcha(recaptcha_response):
+            return "You failed the reCaptcha"
 
     return render_template(
-        "index.html", form=form, username=username, site_key=site_key
+        "index.html",
+        form=form,
+        username=username,
+        site_key=current_app.config["RECAPTCHA_PUBLIC_KEY"],
     )
