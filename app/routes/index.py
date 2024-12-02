@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, current_app, request
+from flask import Blueprint, render_template, current_app, request, abort
 from app.forms import LoginForm
 import requests
 import certifi
@@ -32,7 +32,7 @@ def index():
         recaptcha_response = request.form.get("g-recaptcha-response")
 
         if not verify_recaptcha(recaptcha_response):
-            return "You failed the reCaptcha"
+            return abort(401)
 
     return render_template(
         "index.html",
